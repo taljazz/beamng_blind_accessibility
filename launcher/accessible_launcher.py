@@ -22,6 +22,28 @@ except ImportError:
 # Configuration
 CONFIG_FILE = Path(__file__).parent / "launcher_config.json"
 
+# Audio channel settings (maps to BeamNG's game-settings.cs)
+AUDIO_CHANNELS = {
+    "1": ("Master Volume", "AudioChannelMaster", "Controls all audio"),
+    "2": ("Music Volume", "AudioChannelMusic", "Background music"),
+    "3": ("Effects Volume", "AudioChannelEffects", "General sound effects"),
+    "4": ("UI Volume", "AudioChannelUi", "Menu and interface sounds"),
+    "5": ("GUI Volume", "AudioChannelGui", "GUI interaction sounds"),
+    "6": ("Environment Volume", "AudioChannelEnvironment", "Weather, wind, etc."),
+    "7": ("Ambience Volume", "AudioChannelAmbience", "Background ambient sounds"),
+    "8": ("Messages Volume", "AudioChannelMessages", "Voice messages and notifications"),
+    "9": ("Engine/Power Volume", "AudioChannelPower", "Engine and drivetrain sounds"),
+    "10": ("Collision Volume", "AudioChannelCollision", "Crash and impact sounds"),
+    "11": ("Surface Volume", "AudioChannelSurface", "Tire and road surface sounds"),
+    "12": ("Transmission Volume", "AudioChannelTransmission", "Gear shifting sounds"),
+    "13": ("Turbo/Supercharger Volume", "AudioChannelForcedInduction", "Turbo and supercharger whine"),
+    "14": ("Suspension Volume", "AudioChannelSuspension", "Suspension creaks and sounds"),
+    "15": ("Aero Volume", "AudioChannelAero", "Wind and aerodynamic sounds"),
+    "16": ("Subwoofer/LFE Volume", "AudioChannelLfe", "Low frequency bass effects"),
+    "17": ("Intercom Volume", "AudioChannelIntercom", "Radio and intercom sounds"),
+    "18": ("Other Volume", "AudioChannelOther", "Miscellaneous sounds"),
+}
+
 # Default BeamNG paths to check
 DEFAULT_STEAM_PATHS = [
     r"C:\Program Files (x86)\Steam\steamapps\common\BeamNG.drive",
@@ -327,6 +349,206 @@ class AccessibleLauncher:
                 json.dump({'beamng_path': self.beamng_path}, f, indent=2)
         except Exception as e:
             print(f"Warning: Could not save config: {e}")
+
+    def get_game_settings_path(self):
+        """Get the path to BeamNG's game-settings.cs file."""
+        if BEAMNG_USER_PATH.exists():
+            for folder in sorted(BEAMNG_USER_PATH.iterdir(), reverse=True):
+                if folder.is_dir() and (folder.name == 'current' or folder.name.replace('.', '').isdigit()):
+                    settings_path = folder / "settings" / "game-settings.cs"
+                    if settings_path.exists():
+                        return settings_path
+        return None
+
+    def load_game_settings(self):
+        """Load BeamNG's game-settings.cs file and parse audio settings."""
+        settings_path = self.get_game_settings_path()
+        if not settings_path:
+            return {}
+
+        audio_settings = {}
+        try:
+            with open(settings_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('$pref::SFX::AudioChannel'):
+                        # Parse: $pref::SFX::AudioChannelMaster = "1.000000";
+                        parts = line.split('=')
+                        if len(parts) == 2:
+                            key = parts[0].strip().replace('$pref::SFX::', '')
+                            value = parts[1].strip().rstrip(';').strip('"')
+                            try:
+                                audio_settings[key] = float(value)
+                            except ValueError:
+                                audio_settings[key] = 1.0
+        except Exception as e:
+            self.speak(f"Error loading game settings: {e}")
+
+        return audio_settings
+
+    def save_audio_setting(self, channel_key, value):
+        """Save a single audio setting to game-settings.cs."""
+        settings_path = self.get_game_settings_path()
+        if not settings_path:
+            self.speak("Could not find game settings file.")
+            return False
+
+        try:
+            # Read all lines
+            with open(settings_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            # Find and update the setting
+            setting_line = f'$pref::SFX::{channel_key}'
+            found = False
+            new_lines = []
+
+            for line in lines:
+                if line.strip().startswith(setting_line):
+                    new_lines.append(f'$pref::SFX::{channel_key} = "{value:.6f}";\n')
+                    found = True
+                else:
+                    new_lines.append(line)
+
+            # If setting wasn't found, add it
+            if not found:
+                new_lines.append(f'$pref::SFX::{channel_key} = "{value:.6f}";\n')
+
+            # Write back
+            with open(settings_path, 'w', encoding='utf-8') as f:
+                f.writelines(new_lines)
+
+            return True
+        except Exception as e:
+            self.speak(f"Error saving audio setting: {e}")
+            return False
+
+    def audio_settings_menu(self):
+        """Show audio settings menu."""
+        self.speak("Audio Settings Menu")
+        self.speak("Adjust BeamNG audio volumes. Changes take effect next game launch.")
+
+        # Load current settings
+        current_settings = self.load_game_settings()
+
+        while True:
+            self.speak("Audio Channels:")
+            for key, (name, channel_key, description) in AUDIO_CHANNELS.items():
+                current_value = current_settings.get(channel_key, 1.0)
+                percent = int(current_value * 100)
+                self.speak(f"{key}: {name} - {percent}%", interrupt=False)
+
+            self.speak("A: Adjust All Volumes at Once")
+            self.speak("M: Mute All (set to 0%)")
+            self.speak("R: Reset All to Default (80%)")
+            self.speak("Q: Back to Main Menu")
+
+            choice = self.get_input("Select channel to adjust or action:").lower()
+
+            if choice == 'q':
+                return
+            elif choice == 'a':
+                self.adjust_all_volumes(current_settings)
+            elif choice == 'm':
+                self.mute_all_volumes(current_settings)
+            elif choice == 'r':
+                self.reset_all_volumes(current_settings)
+            elif choice in AUDIO_CHANNELS:
+                name, channel_key, description = AUDIO_CHANNELS[choice]
+                self.adjust_single_volume(name, channel_key, description, current_settings)
+            else:
+                self.speak("Invalid choice.")
+
+    def adjust_single_volume(self, name, channel_key, description, current_settings):
+        """Adjust a single audio channel volume."""
+        current_value = current_settings.get(channel_key, 1.0)
+        current_percent = int(current_value * 100)
+
+        self.speak(f"{name}: {description}")
+        self.speak(f"Current volume: {current_percent}%")
+        self.speak("Enter new volume (0-100), or:")
+        self.speak("  +10 to increase by 10%")
+        self.speak("  -10 to decrease by 10%")
+        self.speak("  'q' to cancel")
+
+        while True:
+            input_val = self.get_input("New volume:")
+
+            if input_val.lower() == 'q':
+                return
+
+            try:
+                if input_val.startswith('+'):
+                    new_percent = current_percent + int(input_val[1:])
+                elif input_val.startswith('-'):
+                    new_percent = current_percent - int(input_val[1:])
+                else:
+                    new_percent = int(input_val)
+
+                # Clamp to valid range
+                new_percent = max(0, min(200, new_percent))  # Allow up to 200% for boost
+                new_value = new_percent / 100.0
+
+                if self.save_audio_setting(channel_key, new_value):
+                    current_settings[channel_key] = new_value
+                    self.speak(f"{name} set to {new_percent}%")
+                return
+
+            except ValueError:
+                self.speak("Invalid input. Enter a number like 50, +10, or -10.")
+
+    def adjust_all_volumes(self, current_settings):
+        """Adjust all volumes at once."""
+        self.speak("Adjust All Volumes")
+        self.speak("This will set all audio channels to the same level.")
+        self.speak("Enter volume (0-100) or 'q' to cancel:")
+
+        input_val = self.get_input("Volume for all channels:")
+
+        if input_val.lower() == 'q':
+            return
+
+        try:
+            new_percent = int(input_val)
+            new_percent = max(0, min(200, new_percent))
+            new_value = new_percent / 100.0
+
+            success_count = 0
+            for key, (name, channel_key, _) in AUDIO_CHANNELS.items():
+                if self.save_audio_setting(channel_key, new_value):
+                    current_settings[channel_key] = new_value
+                    success_count += 1
+
+            self.speak(f"Set {success_count} audio channels to {new_percent}%")
+
+        except ValueError:
+            self.speak("Invalid input. Enter a number like 50.")
+
+    def mute_all_volumes(self, current_settings):
+        """Mute all audio channels."""
+        self.speak("Muting all audio channels...")
+
+        success_count = 0
+        for key, (name, channel_key, _) in AUDIO_CHANNELS.items():
+            if self.save_audio_setting(channel_key, 0.0):
+                current_settings[channel_key] = 0.0
+                success_count += 1
+
+        self.speak(f"Muted {success_count} audio channels. Set to 0%.")
+
+    def reset_all_volumes(self, current_settings):
+        """Reset all audio channels to default (80%)."""
+        self.speak("Resetting all audio channels to 80%...")
+
+        success_count = 0
+        for key, (name, channel_key, _) in AUDIO_CHANNELS.items():
+            # Master defaults to 100%, others to 80%
+            default_value = 1.0 if channel_key == "AudioChannelMaster" else 0.8
+            if self.save_audio_setting(channel_key, default_value):
+                current_settings[channel_key] = default_value
+                success_count += 1
+
+        self.speak(f"Reset {success_count} audio channels to defaults.")
 
     def find_beamng(self):
         """Try to find BeamNG installation."""
@@ -883,6 +1105,7 @@ class AccessibleLauncher:
             self.speak("6: Launch Custom Tuned Config")
             self.speak("T: Tune Existing Vehicle Config")
             self.speak("N: Create New Tuned Config")
+            self.speak("A: Audio Settings")
             self.speak("C: Configure BeamNG Path")
             self.speak("Q: Quit")
 
@@ -904,6 +1127,8 @@ class AccessibleLauncher:
                 self.tuning_menu()
             elif choice == 'n':
                 self.create_new_config()
+            elif choice == 'a':
+                self.audio_settings_menu()
             elif choice == 'c':
                 self.configure_beamng_path()
             elif choice == 'q':

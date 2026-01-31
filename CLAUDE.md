@@ -266,8 +266,44 @@ python accessible_launcher.py
 6. Launch Custom Tuned Config
 T. Tune Existing Vehicle Config
 N. Create New Tuned Config
+A. Audio Settings
 C. Configure BeamNG Path
 Q. Quit
+
+### Audio Settings (Option A)
+The audio settings menu allows you to adjust all BeamNG audio volumes without navigating the in-game menus. Changes are saved directly to BeamNG's settings file and take effect on next game launch.
+
+**Available Audio Channels:**
+| # | Channel | Description |
+|---|---------|-------------|
+| 1 | Master Volume | Controls all audio |
+| 2 | Music Volume | Background music |
+| 3 | Effects Volume | General sound effects |
+| 4 | UI Volume | Menu and interface sounds |
+| 5 | GUI Volume | GUI interaction sounds |
+| 6 | Environment Volume | Weather, wind, etc. |
+| 7 | Ambience Volume | Background ambient sounds |
+| 8 | Messages Volume | Voice messages and notifications |
+| 9 | Engine/Power Volume | Engine and drivetrain sounds |
+| 10 | Collision Volume | Crash and impact sounds |
+| 11 | Surface Volume | Tire and road surface sounds |
+| 12 | Transmission Volume | Gear shifting sounds |
+| 13 | Turbo/Supercharger Volume | Turbo and supercharger whine |
+| 14 | Suspension Volume | Suspension creaks and sounds |
+| 15 | Aero Volume | Wind and aerodynamic sounds |
+| 16 | Subwoofer/LFE Volume | Low frequency bass effects |
+| 17 | Intercom Volume | Radio and intercom sounds |
+| 18 | Other Volume | Miscellaneous sounds |
+
+**Quick Actions:**
+- **A**: Set all volumes to the same level
+- **M**: Mute all audio (0%)
+- **R**: Reset all to defaults (Master 100%, others 80%)
+
+**Volume Adjustment:**
+- Enter a number (0-100) to set exact percentage
+- Enter +10 or -10 to increase/decrease by 10%
+- Volumes can go up to 200% for boost if needed
 
 ### Vehicle Tuning (File-Based)
 The tuning system edits `.pc` config files directly - no game running required.
