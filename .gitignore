@@ -45,3 +45,4 @@ launcher/launcher_config.json
 
 # Claude Code local settings
 .claude/
+CLAUDE.md
