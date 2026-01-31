@@ -273,6 +273,13 @@ Q. Quit
 ### Audio Settings (Option A)
 The audio settings menu allows you to adjust all BeamNG audio volumes without navigating the in-game menus. Changes are saved directly to BeamNG's settings file and take effect on next game launch.
 
+**IMPORTANT:** BeamNG must be **closed** when adjusting audio settings. The game locks the settings file while running, and will overwrite your changes when it exits.
+
+**Settings File Location:**
+```
+%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\game-settings.cs
+```
+
 **Available Audio Channels:**
 | # | Channel | Description |
 |---|---------|-------------|
@@ -304,6 +311,21 @@ The audio settings menu allows you to adjust all BeamNG audio volumes without na
 - Enter a number (0-100) to set exact percentage
 - Enter +10 or -10 to increase/decrease by 10%
 - Volumes can go up to 200% for boost if needed
+
+**How Audio Settings Work:**
+1. Launcher reads `game-settings.cs` to get current values
+2. Settings are stored as `$pref::SFX::AudioChannel<Name> = "<value>";`
+3. Values range from 0.0 (muted) to 1.0 (100%) or higher for boost
+4. Changes are written directly to the file
+5. BeamNG loads these settings on startup
+
+**Example Settings in game-settings.cs:**
+```
+$pref::SFX::AudioChannelMaster = "1.000000";
+$pref::SFX::AudioChannelMusic = "0.800000";
+$pref::SFX::AudioChannelEffects = "1.000000";
+$pref::SFX::AudioChannelPower = "0.800000";
+```
 
 ### Vehicle Tuning (File-Based)
 The tuning system edits `.pc` config files directly - no game running required.
@@ -525,6 +547,20 @@ SPEECH_RATE = 200
 7. Press **Ctrl+Shift+T** to spawn traffic
 8. Verify you hear "Traffic spawned, X vehicles"
 
+### Test Audio Settings
+1. **Close BeamNG completely** (important!)
+2. Run launcher: `python launcher/accessible_launcher.py`
+3. Press **A** to open Audio Settings
+4. Press **1** to select Master Volume
+5. Enter a new value (e.g., 50)
+6. Verify you hear "Saved! Master Volume is now 50%"
+7. Launch BeamNG and verify the volume changed
+8. To verify in the file, check:
+   ```
+   %LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\game-settings.cs
+   ```
+   Look for: `$pref::SFX::AudioChannelMaster = "0.500000";`
+
 ## Troubleshooting
 
 ### No Announcements
@@ -547,6 +583,13 @@ SPEECH_RATE = 200
 - Launcher searches in `mods/unpacked` and `mods/temp_tuning`
 - Configs must be in a `vehicles/` subfolder
 - File extension must be `.pc`
+
+### Audio Settings Not Saving
+- **Close BeamNG first** - The game locks the settings file while running
+- If you see "Cannot save settings. Make sure BeamNG is not running." - close the game
+- Check that the settings folder exists: `%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\settings\`
+- Verify `game-settings.cs` file exists and is not read-only
+- If BeamNG overwrites your settings on exit, you changed them while the game was running
 
 ## Future Development (Phase 2)
 
