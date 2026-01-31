@@ -45,7 +45,7 @@ local trafficCheckTimer = 0
 -- AI polling fallback (in case hooks don't fire)
 local aiPollInterval = 0.5
 local aiPollTimer = 0
-local debugAiPolling = true  -- Set to true for debugging
+local debugAiPolling = false  -- Set to true for debugging
 local debugPollCount = 0     -- Count polls for debug output
 
 -- AI Speed control
@@ -213,6 +213,19 @@ local function onAiModeChange(vehicleId, newAiMode)
     handleAiModeChange(vehicleId, newAiMode, "hook")
 end
 
+-- Alternative hook: Called when vehicle AI state changes (more detailed info)
+local function onVehicleAIStateChanged(info)
+    if not info then return end
+    log('I', 'blindAccessibility', 'onVehicleAIStateChanged HOOK FIRED: ' .. tostring(dumps(info)))
+
+    local vehicleId = info.vehicleId or info.vid
+    local newMode = info.mode or info.aiMode or info.state
+
+    if vehicleId and newMode then
+        handleAiModeChange(vehicleId, newMode, "ai-state-hook")
+    end
+end
+
 -- Polling fallback: Check AI state for player vehicle
 local function pollAiState()
     local playerVid = be:getPlayerVehicleID(0)
@@ -221,46 +234,54 @@ local function pollAiState()
     local vehicle = be:getObjectByID(playerVid)
     if not vehicle then return end
 
-    -- Request AI mode from vehicle Lua - comprehensive check
+    -- Request AI mode from vehicle Lua - simplified and robust check
+    -- Uses pcall on vehicle side to handle any missing globals gracefully
     local cmd = string.format([[
         local mode = "disabled"
-        local debugInfo = "ai="..tostring(ai)
+        local debugInfo = ""
 
-        if ai then
-            -- Try all known ways to get AI mode
-            if ai.mode and ai.mode ~= "" then
-                mode = ai.mode
-                debugInfo = debugInfo .. " mode=" .. tostring(ai.mode)
+        -- Primary check: ai.mode (most reliable when AI is active)
+        local aiExists, aiMode = pcall(function()
+            if ai and ai.mode and ai.mode ~= "" then
+                return ai.mode
             end
-            if ai.driveInLaneFlag ~= nil then
-                debugInfo = debugInfo .. " inLane=" .. tostring(ai.driveInLaneFlag)
-            end
-            -- Check if AI is actually controlling the vehicle
-            if ai.stateChanged ~= nil then
-                debugInfo = debugInfo .. " stateChanged=" .. tostring(ai.stateChanged)
-            end
+            return nil
+        end)
+        if aiExists and aiMode then
+            mode = aiMode
+            debugInfo = "ai.mode=" .. tostring(aiMode)
         end
 
-        -- Also check electrics for AI control indicator
-        if electrics and electrics.values then
-            local aiVal = electrics.values.ai
-            local aiCtrl = electrics.values.aiControlled
-            if aiVal ~= nil then
-                debugInfo = debugInfo .. " elec.ai=" .. tostring(aiVal)
-                if aiVal == 1 or aiVal == true then
-                    if mode == "disabled" then mode = "enabled" end
+        -- Secondary check: electrics.values.ai (some vehicles use this)
+        if mode == "disabled" then
+            local elecExists, elecVal = pcall(function()
+                if electrics and electrics.values and electrics.values.ai then
+                    return electrics.values.ai
+                end
+                return nil
+            end)
+            if elecExists and elecVal then
+                if elecVal == 1 or elecVal == true then
+                    mode = "enabled"
+                    debugInfo = debugInfo .. " elec.ai=1"
                 end
             end
-            if aiCtrl ~= nil then
-                debugInfo = debugInfo .. " elec.aiControlled=" .. tostring(aiCtrl)
-            end
         end
 
-        -- Check controller inputs
-        if controller then
-            local mainCtrl = controller.mainController
-            if mainCtrl then
-                debugInfo = debugInfo .. " mainCtrl=" .. tostring(mainCtrl)
+        -- Tertiary check: controller.mainController for AI
+        if mode == "disabled" then
+            local ctrlExists, ctrlAI = pcall(function()
+                if controller and controller.mainController then
+                    local mc = controller.mainController
+                    if mc.isAI or mc.aiControlled then
+                        return true
+                    end
+                end
+                return nil
+            end)
+            if ctrlExists and ctrlAI then
+                mode = "enabled"
+                debugInfo = debugInfo .. " ctrl.ai=1"
             end
         end
 
@@ -274,21 +295,25 @@ local function onAiModePolled(vehicleId, mode, debugInfo)
     debugPollCount = debugPollCount + 1
 
     if debugAiPolling then
-        log('I', 'blindAccessibility', 'AI poll: vid=' .. tostring(vehicleId) .. ' mode=' .. tostring(mode) .. ' debug=[' .. tostring(debugInfo or "") .. ']')
+        log('D', 'blindAccessibility', 'AI poll response: vid=' .. tostring(vehicleId) .. ' mode=' .. tostring(mode) .. ' info=[' .. tostring(debugInfo or "") .. ']')
 
-        -- Send debug status via UDP every 10 polls (5 seconds) so user can see it in helper
+        -- Send debug status via UDP once after 10 polls (5 seconds) so user can verify polling works
         if debugPollCount == 10 then
-            announceStatus("AI polling active, mode=" .. tostring(mode))
+            announceStatus("AI polling active, current mode: " .. tostring(mode))
         end
     end
 
+    -- Normalize mode for comparison
+    local normalizedMode = (mode == nil or mode == "") and "disabled" or mode
+
     local lastPolled = aiState.lastPolledModes[vehicleId]
-    if lastPolled ~= mode then
-        log('I', 'blindAccessibility', 'AI mode change detected via polling: ' .. tostring(lastPolled) .. ' -> ' .. tostring(mode))
-        aiState.lastPolledModes[vehicleId] = mode
-        -- Only use polling result if we haven't seen this change via hook
-        if aiState.vehicleModes[vehicleId] ~= mode then
-            handleAiModeChange(vehicleId, mode, "poll")
+    if lastPolled ~= normalizedMode then
+        log('I', 'blindAccessibility', 'AI mode change detected via vehicle poll: ' .. tostring(lastPolled) .. ' -> ' .. normalizedMode)
+        aiState.lastPolledModes[vehicleId] = normalizedMode
+
+        -- Only use polling result if we haven't already processed this change via hook
+        if aiState.vehicleModes[vehicleId] ~= normalizedMode then
+            handleAiModeChange(vehicleId, normalizedMode, "vehicle-poll")
         end
     end
 end
@@ -325,9 +350,15 @@ local function checkTrafficState()
     aiState.lastTrafficCount = trafficCount
 end
 
--- Called when traffic system starts
+-- Called when traffic system starts (hook name is onTrafficStart, not onTrafficStarted)
+local function onTrafficStart()
+    log('I', 'blindAccessibility', 'onTrafficStart HOOK FIRED: Traffic system started')
+    -- Will be picked up by the next traffic check
+end
+
+-- Keep old name as alias in case some versions use it
 local function onTrafficStarted()
-    log('I', 'blindAccessibility', 'Traffic system started')
+    log('I', 'blindAccessibility', 'onTrafficStarted HOOK FIRED: Traffic system started')
     -- Will be picked up by the next traffic check
 end
 
@@ -530,7 +561,7 @@ end
 
 local function onExtensionLoaded()
     log('I', 'blindAccessibility', 'Blind Accessibility extension loading...')
-    log('I', 'blindAccessibility', 'AI hooks registered: onAiModeChange, onTrafficStarted')
+    log('I', 'blindAccessibility', 'AI hooks registered: onAiModeChange, onVehicleAIStateChanged, onTrafficStart')
 
     if not initSocket() then
         log('E', 'blindAccessibility', 'Failed to initialize, extension disabled')
@@ -557,25 +588,80 @@ local function onExtensionUnloaded()
     log('I', 'blindAccessibility', 'Blind Accessibility extension unloaded')
 end
 
--- Alternative: Check AI state from GE side using electrics
+-- Alternative: Check AI state from GE side using multiple methods
 local function pollAiStateGE()
     local playerVid = be:getPlayerVehicleID(0)
     if not playerVid or playerVid < 0 then return end
 
-    -- Try to get AI state via core_vehicle_manager if available
-    if core_vehicle_manager then
-        local vehData = core_vehicle_manager.getVehicleData(playerVid)
-        if vehData and vehData.ai then
-            local mode = vehData.ai.mode or "disabled"
+    local mode = nil
+
+    -- Method 1: Try core_vehicle_manager
+    if core_vehicle_manager and core_vehicle_manager.getVehicleData then
+        local success, vehData = pcall(function()
+            return core_vehicle_manager.getVehicleData(playerVid)
+        end)
+        if success and vehData and vehData.ai then
+            mode = vehData.ai.mode
             if debugAiPolling then
-                log('D', 'blindAccessibility', 'GE poll: AI mode from vehicle data = ' .. tostring(mode))
+                log('D', 'blindAccessibility', 'GE poll method 1: AI mode = ' .. tostring(mode))
             end
-            local lastMode = aiState.lastPolledModes[playerVid]
-            if lastMode ~= mode then
-                aiState.lastPolledModes[playerVid] = mode
-                if aiState.vehicleModes[playerVid] ~= mode then
-                    handleAiModeChange(playerVid, mode, "ge-poll")
+        end
+    end
+
+    -- Method 2: Try gameplay_ai if available
+    if not mode and gameplay_ai then
+        local success, aiInfo = pcall(function()
+            if gameplay_ai.getVehicleAIData then
+                return gameplay_ai.getVehicleAIData(playerVid)
+            end
+            return nil
+        end)
+        if success and aiInfo then
+            mode = aiInfo.mode or aiInfo.state
+            if debugAiPolling then
+                log('D', 'blindAccessibility', 'GE poll method 2: AI mode = ' .. tostring(mode))
+            end
+        end
+    end
+
+    -- Method 3: Try be:getObjectByID and check for AI controller
+    if not mode then
+        local vehicle = be:getObjectByID(playerVid)
+        if vehicle then
+            -- Check if vehicle has isAIControlled method
+            local success, isAI = pcall(function()
+                if vehicle.isAIControlled then
+                    return vehicle:isAIControlled()
+                elseif vehicle.getAIMode then
+                    return vehicle:getAIMode()
                 end
+                return nil
+            end)
+            if success and isAI ~= nil then
+                if type(isAI) == "boolean" then
+                    mode = isAI and "enabled" or "disabled"
+                else
+                    mode = isAI
+                end
+                if debugAiPolling then
+                    log('D', 'blindAccessibility', 'GE poll method 3: AI mode = ' .. tostring(mode))
+                end
+            end
+        end
+    end
+
+    -- If we got a mode, process it
+    if mode then
+        local normalizedMode = (mode == nil or mode == "" or mode == false) and "disabled" or tostring(mode)
+        local lastMode = aiState.lastPolledModes[playerVid]
+
+        if lastMode ~= normalizedMode then
+            if debugAiPolling then
+                log('I', 'blindAccessibility', 'GE poll detected change: ' .. tostring(lastMode) .. ' -> ' .. normalizedMode)
+            end
+            aiState.lastPolledModes[playerVid] = normalizedMode
+            if aiState.vehicleModes[playerVid] ~= normalizedMode then
+                handleAiModeChange(playerVid, normalizedMode, "ge-poll")
             end
         end
     end
@@ -655,9 +741,11 @@ M.onExtensionLoaded = onExtensionLoaded
 M.onExtensionUnloaded = onExtensionUnloaded
 M.onUpdate = onUpdate
 
--- BeamNG built-in hooks
-M.onAiModeChange = onAiModeChange        -- Called when any vehicle's AI mode changes
-M.onTrafficStarted = onTrafficStarted    -- Called when traffic system starts
+-- BeamNG built-in hooks for AI detection
+M.onAiModeChange = onAiModeChange              -- Called when any vehicle's AI mode changes
+M.onVehicleAIStateChanged = onVehicleAIStateChanged  -- Alternative AI state hook
+M.onTrafficStart = onTrafficStart              -- Called when traffic system starts (correct name)
+M.onTrafficStarted = onTrafficStarted          -- Alias for compatibility
 M.onVehicleSpawned = onVehicleSpawned
 M.onClientStartMission = onClientStartMission
 
