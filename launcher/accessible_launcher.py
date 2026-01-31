@@ -398,13 +398,18 @@ class AccessibleLauncher:
             with open(settings_path, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
 
-            # Find and update the setting
-            setting_line = f'$pref::SFX::{channel_key}'
+            # Find and update the setting - must match exactly with space or equals after
+            setting_prefix = f'$pref::SFX::{channel_key}'
             found = False
             new_lines = []
 
             for line in lines:
-                if line.strip().startswith(setting_line):
+                stripped = line.strip()
+                # Check for exact match (key followed by space or =)
+                if stripped.startswith(setting_prefix) and (
+                    len(stripped) == len(setting_prefix) or
+                    stripped[len(setting_prefix)] in ' ='
+                ):
                     new_lines.append(f'$pref::SFX::{channel_key} = "{value:.6f}";\n')
                     found = True
                 else:
@@ -418,7 +423,18 @@ class AccessibleLauncher:
             with open(settings_path, 'w', encoding='utf-8') as f:
                 f.writelines(new_lines)
 
+            # Verify the write worked
+            with open(settings_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                expected = f'$pref::SFX::{channel_key} = "{value:.6f}";'
+                if expected not in content:
+                    self.speak("Warning: Setting may not have saved correctly.")
+                    return False
+
             return True
+        except PermissionError:
+            self.speak("Error: Cannot save settings. Make sure BeamNG is not running.")
+            return False
         except Exception as e:
             self.speak(f"Error saving audio setting: {e}")
             return False
@@ -489,9 +505,12 @@ class AccessibleLauncher:
                 new_percent = max(0, min(200, new_percent))  # Allow up to 200% for boost
                 new_value = new_percent / 100.0
 
+                self.speak(f"Saving {name} to {new_percent}%...")
                 if self.save_audio_setting(channel_key, new_value):
                     current_settings[channel_key] = new_value
-                    self.speak(f"{name} set to {new_percent}%")
+                    self.speak(f"Saved! {name} is now {new_percent}%")
+                else:
+                    self.speak(f"Failed to save {name}. Check if BeamNG is running.")
                 return
 
             except ValueError:
@@ -513,13 +532,20 @@ class AccessibleLauncher:
             new_percent = max(0, min(200, new_percent))
             new_value = new_percent / 100.0
 
+            self.speak(f"Setting all channels to {new_percent}%...")
             success_count = 0
+            fail_count = 0
             for key, (name, channel_key, _) in AUDIO_CHANNELS.items():
                 if self.save_audio_setting(channel_key, new_value):
                     current_settings[channel_key] = new_value
                     success_count += 1
+                else:
+                    fail_count += 1
 
-            self.speak(f"Set {success_count} audio channels to {new_percent}%")
+            if fail_count == 0:
+                self.speak(f"Success! All {success_count} audio channels set to {new_percent}%")
+            else:
+                self.speak(f"Set {success_count} channels, {fail_count} failed. Is BeamNG running?")
 
         except ValueError:
             self.speak("Invalid input. Enter a number like 50.")
