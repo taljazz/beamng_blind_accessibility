@@ -9,10 +9,15 @@ This mod speaks menu items, game events, and UI elements through your screen rea
 ### Features
 
 - **Menu Navigation** - Announces menu items as you navigate with arrow keys
-- **AI Announcements** - Speaks when AI is enabled/disabled and traffic is spawned
 - **Accessible Launcher** - Screen reader friendly launcher to select maps and vehicles
 - **Vehicle Tuning** - Customize vehicles with engine swaps, transmissions, turbos, and more
 - **Screen Reader Support** - Works with NVDA, JAWS, or Windows SAPI (built-in voices)
+
+### Planned Features
+
+- AI state announcements (when AI is enabled/disabled)
+- Traffic spawn announcements
+- Driving feedback (speed, RPM, audio cues)
 
 ## Requirements
 
@@ -33,12 +38,13 @@ This mod speaks menu items, game events, and UI elements through your screen rea
 1. Download or clone this repository
 2. Copy the `mods/unpacked/blind_accessibility` folder to your BeamNG mods folder:
    ```
-   Documents\BeamNG.drive\mods\unpacked\
+   %LocalAppData%\BeamNG.drive\mods\unpacked\
    ```
-   The final path should be:
+   The full path will be something like:
    ```
-   Documents\BeamNG.drive\mods\unpacked\blind_accessibility\
+   C:\Users\YourName\AppData\Local\BeamNG.drive\mods\unpacked\blind_accessibility\
    ```
+   **Tip:** Press Win+R, type `%LocalAppData%\BeamNG.drive\mods` and press Enter to open the folder directly.
 3. The mod loads automatically when BeamNG starts
 
 ### Step 2: Install Python Dependencies
@@ -101,26 +107,14 @@ The launcher provides a fully accessible way to start the game:
 
 ## Keyboard Controls (In-Game)
 
-These BeamNG shortcuts work with the mod and will be announced:
+These BeamNG shortcuts work with the mod:
 
 | Shortcut | Action |
 |----------|--------|
 | Arrow Keys | Navigate menus |
 | Enter | Select menu item |
 | Escape | Go back / Close menu |
-| Ctrl+Shift+I | Toggle AI on your vehicle |
-| Ctrl+Shift+T | Spawn AI traffic |
 | E | Open radial menu |
-
-### AI Modes
-
-When you enable AI on your vehicle (Ctrl+Shift+I), you'll hear the mode announced:
-
-- **Traffic** - AI follows traffic rules and stays in lanes
-- **Random** - AI drives randomly around the map
-- **Span** - AI explores the entire road network
-- **Chase** - AI chases a target vehicle
-- **Flee** - AI flees from a target vehicle
 
 ## Vehicle Tuning
 
@@ -193,7 +187,7 @@ The launcher lets you customize vehicles without needing to see the game's menus
 
 1. Verify the mod is in the correct folder:
    ```
-   Documents\BeamNG.drive\mods\unpacked\blind_accessibility\
+   %LocalAppData%\BeamNG.drive\mods\unpacked\blind_accessibility\
    ```
 2. Press the tilde key (~) in BeamNG to open the console and check for errors
 3. Try reloading Lua with Ctrl+L
@@ -277,8 +271,8 @@ beamng_blind_accessibility/
 Contributions are welcome! This project aims to make BeamNG.drive accessible to everyone.
 
 Areas that could use help:
+- AI state announcements
 - Additional UI element detection
-- Driving feedback (speed, RPM, steering audio cues)
 - Support for more game modes
 - Testing with different screen readers
 
