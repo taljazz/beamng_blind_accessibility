@@ -1,0 +1,15 @@
+{
+  "name": "Blind Accessibility",
+  "author": "Thomas",
+  "version": "1.0",
+  "description": "Screen reader support for blind and visually impaired users",
+  "directive": "blindAccessibility",
+  "domElement": "<blind-accessibility></blind-accessibility>",
+  "css": {
+    "width": "1px",
+    "height": "1px",
+    "top": "0px",
+    "left": "0px"
+  },
+  "types": ["ui.apps.categories.debug"]
+}

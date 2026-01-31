@@ -1,0 +1,15 @@
+{
+  "format": 2,
+  "mainPartName": "atv",
+  "model": "atv",
+  "parts": {
+    "n2o_system": "AgentY_engine_swaps",
+    "engineswap_sample": "sample_gavril_engine_v8",
+    "transmissionswap_sample": "sample_stransmission_M",
+    "turboswap_sample": "",
+    "scswap_sample": "",
+    "ecuswap_sample": "",
+    "internalsswap_sample": "",
+    "radiatorswap_sample": ""
+  }
+}

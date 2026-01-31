@@ -45,8 +45,13 @@ local trafficCheckTimer = 0
 -- AI polling fallback (in case hooks don't fire)
 local aiPollInterval = 0.5
 local aiPollTimer = 0
-local debugAiPolling = false  -- Set to true for debugging
+local debugAiPolling = false  -- Set to true for verbose debug logging
 local debugPollCount = 0     -- Count polls for debug output
+
+-- Diagnostic mode - announces AI detection status for troubleshooting
+local diagnosticMode = true   -- Set to true to help debug AI detection issues
+local lastDiagnosticAnnounce = 0
+local diagnosticInterval = 3.0  -- Announce diagnostic info every 3 seconds when AI changes
 
 -- AI Speed control
 local aiCurrentSpeed = 20    -- Current AI speed in m/s (default ~72 km/h)
@@ -285,7 +290,7 @@ local function pollAiState()
             end
         end
 
-        obj:queueGameEngineLua("extensions.blindAccessibility.onAiModePolled(%d, '" .. tostring(mode) .. "', [[" .. debugInfo .. "]])")
+        obj:queueGameEngineLua("extensions.blindAccessibility.onAiModePolled(%d, '" .. tostring(mode) .. "', '" .. debugInfo .. "')")
     ]], playerVid)
     vehicle:queueLuaCommand(cmd)
 end
@@ -556,6 +561,70 @@ local function aiAnnounceSpeed()
 end
 
 -- =============================================================================
+-- DIAGNOSTIC FUNCTIONS - Help debug AI detection
+-- =============================================================================
+
+-- Manually check and announce current AI state (can be bound to a key)
+local function diagnoseAiState()
+    local playerVid = be:getPlayerVehicleID(0)
+    if not playerVid or playerVid < 0 then
+        announceAlert("No player vehicle found", 1)
+        return
+    end
+
+    local vehicle = be:getObjectByID(playerVid)
+    if not vehicle then
+        announceAlert("Could not get vehicle object", 1)
+        return
+    end
+
+    local trackedMode = aiState.vehicleModes[playerVid] or "not tracked"
+    local polledMode = aiState.lastPolledModes[playerVid] or "not polled"
+
+    announceAlert("Checking AI state for vehicle " .. tostring(playerVid), 1)
+
+    -- Send a diagnostic command to the vehicle
+    local cmd = [[
+        local results = {}
+
+        -- Check if ai global exists
+        if ai then
+            table.insert(results, "ai exists")
+            if ai.mode then
+                table.insert(results, "mode=" .. tostring(ai.mode))
+            else
+                table.insert(results, "no ai.mode")
+            end
+            if ai.isDriving then
+                table.insert(results, "isDriving=" .. tostring(ai.isDriving()))
+            end
+        else
+            table.insert(results, "ai is nil")
+        end
+
+        -- Check electrics
+        if electrics and electrics.values then
+            if electrics.values.ai ~= nil then
+                table.insert(results, "elec.ai=" .. tostring(electrics.values.ai))
+            end
+        end
+
+        local msg = table.concat(results, ", ")
+        obj:queueGameEngineLua("extensions.blindAccessibility.onDiagnosticResult('" .. msg .. "')")
+    ]]
+    vehicle:queueLuaCommand(cmd)
+
+    -- Also announce what we have tracked
+    announceStatus("Tracked mode: " .. trackedMode .. ", Polled: " .. polledMode)
+end
+
+-- Called when diagnostic result comes back from vehicle
+local function onDiagnosticResult(result)
+    log('I', 'blindAccessibility', 'Diagnostic result: ' .. tostring(result))
+    announceAlert("Vehicle reports: " .. tostring(result), 1)
+end
+
+-- =============================================================================
 -- EXTENSION LIFECYCLE
 -- =============================================================================
 
@@ -575,9 +644,11 @@ local function onExtensionLoaded()
     -- settings/inputmaps/keyboard_blindAccessibility.json
     log('I', 'blindAccessibility', 'Input actions loaded from JSON files')
 
-    announceStatus("Blind Accessibility mod loaded")
+    -- Announce load with more detail so user knows it's working
+    announceAlert("Blind Accessibility mod loaded. Press Control Alt A to diagnose AI.", 1)
     log('I', 'blindAccessibility', 'Blind Accessibility extension loaded successfully')
     log('I', 'blindAccessibility', 'AI polling fallback active (interval: ' .. aiPollInterval .. 's)')
+    log('I', 'blindAccessibility', 'Diagnostic mode: ' .. tostring(diagnosticMode))
 end
 
 local function onExtensionUnloaded()
@@ -781,5 +852,9 @@ M.setEnabled = setEnabled
 M.aiSpeedUp = aiSpeedUp
 M.aiSpeedDown = aiSpeedDown
 M.aiAnnounceSpeed = aiAnnounceSpeed
+
+-- Diagnostic functions
+M.diagnoseAiState = diagnoseAiState
+M.onDiagnosticResult = onDiagnosticResult
 
 return M

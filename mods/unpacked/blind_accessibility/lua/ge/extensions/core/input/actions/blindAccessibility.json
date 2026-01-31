@@ -25,5 +25,14 @@
         "isBasic": true,
         "title": "Accessibility: Announce AI Speed",
         "desc": "Announce current AI speed setting"
+    },
+    "blindAccessibility_diagnoseAi": {
+        "cat": "general",
+        "order": 903,
+        "ctx": "tlua",
+        "onDown": "extensions.blindAccessibility.diagnoseAiState()",
+        "isBasic": true,
+        "title": "Accessibility: Diagnose AI State",
+        "desc": "Check and announce current AI detection status for troubleshooting"
     }
 }

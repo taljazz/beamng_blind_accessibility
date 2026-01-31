@@ -2,7 +2,8 @@
     "bindings": [
         {"action": "blindAccessibility_aiSpeedUp", "control": "ctrl shift rbracket"},
         {"action": "blindAccessibility_aiSpeedDown", "control": "ctrl shift lbracket"},
-        {"action": "blindAccessibility_aiAnnounceSpeed", "control": "ctrl shift backslash"}
+        {"action": "blindAccessibility_aiAnnounceSpeed", "control": "ctrl shift backslash"},
+        {"action": "blindAccessibility_diagnoseAi", "control": "ctrl alt a"}
     ],
     "name": "Keyboard",
     "version": 1,

@@ -51,18 +51,22 @@ This project provides blind accessibility for BeamNG.drive through a two-compone
 ## File Locations
 
 ### BeamNG Mod Files
-Located in: `%LOCALAPPDATA%\BeamNG.BeamNG.drive\current\mods\unpacked\blind_accessibility.zip\`
+Located in: `%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\mods\unpacked\blind_accessibility\`
 
 | File | Purpose |
 |------|---------|
-| `lua/ge/extensions/blindAccessibility.lua` | Main game engine extension - handles UDP communication and event processing |
+| `lua/ge/extensions/blindAccessibility.lua` | Main game engine extension - handles UDP communication, AI monitoring, and event processing |
+| `lua/ge/extensions/core/input/actions/blindAccessibility.json` | Input action definitions for accessibility keybinds |
 | `scripts/blind_accessibility/modScript.lua` | Mod entry point and registration |
 | `scripts/blind_accessibility/extension.lua` | Extension registration |
+| `settings/inputmaps/keyboard_blindAccessibility.json` | Keyboard bindings for accessibility shortcuts |
 | `ui/modules/blindAccessibilityService.js` | Auto-loading UI service - monitors DOM for navigation events |
 | `ui/modules/accessibility/accessibility.js` | Accessibility AngularJS module |
 | `ui/modules/apps/blindAccessibility/app.js` | UI app for deeper state capture |
+| `ui/modules/apps/blindAccessibility/app.json` | UI app manifest with directive and DOM element |
 | `ui/entrypoints/accessibility-service.js` | UI entrypoint for service loading |
 | `vehicles/atv/tracked_wydra_v8.pc` | Custom vehicle config for tracked Wydra with V8 |
+| `vehicles/atv/ripsaw.pc` | Efficiency-tuned tracked Wydra config |
 
 ### Helper Application Files
 Located in: `C:\Coding Projects\beamng_blind_accessibility\helper\`
@@ -107,7 +111,7 @@ Payload: UTF-8 text
 
 ## AI State Announcements
 
-The mod automatically monitors and announces AI state changes when you use BeamNG's built-in controls.
+The mod automatically monitors and announces AI state changes when you use BeamNG's built-in controls. Detection uses a dual system: the `onAiModeChange` hook fires instantly, while a polling fallback confirms state changes every 0.3 seconds.
 
 ### Announced Events
 
@@ -129,6 +133,15 @@ Use these built-in BeamNG keyboard shortcuts:
 | **E** | Open radial menu (access AI options) |
 
 When you use any of these controls, the mod will announce the change via your screen reader.
+
+### Accessibility Mod Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| **Ctrl+Alt+A** | Run AI diagnostics (announces current AI state) |
+| **Ctrl+Shift+]** | Increase AI target speed |
+| **Ctrl+Shift+[** | Decrease AI target speed |
+| **Ctrl+Shift+\\** | Announce current AI speed |
 
 ### AI Modes
 
@@ -210,8 +223,8 @@ pip install cytolk pyttsx3
 ```
 
 ### Mod Installation
-1. Copy the `blind_accessibility.zip` folder to:
-   `%LOCALAPPDATA%\BeamNG.BeamNG.drive\<version>\mods\unpacked\`
+1. Copy the `blind_accessibility` folder to:
+   `%LOCALAPPDATA%\BeamNG\BeamNG.drive\current\mods\unpacked\`
 
 2. The mod auto-loads when BeamNG starts
 
@@ -404,8 +417,9 @@ The `blindAccessibility.lua` extension:
 1. Receives announcements from UI via `announce()` function
 2. Creates UDP packets with BNBA protocol
 3. Sends to helper app on port 4445
-4. Monitors AI state and announces changes
+4. Monitors AI state via `onAiModeChange` hook with polling fallback
 5. Hooks into BeamNG events (vehicle spawn, level load, etc.)
+6. Provides diagnostic commands for troubleshooting AI state
 
 ### Speech Output
 The helper's `speech.py` module:
