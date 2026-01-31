@@ -1,0 +1,7 @@
+# BeamNG Blind Accessibility Helper - Dependencies
+
+# Screen reader access via Tolk
+cytolk>=0.1.13
+
+# Text-to-speech via Windows SAPI (fallback)
+pyttsx3>=2.90

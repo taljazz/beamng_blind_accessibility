@@ -1,0 +1,29 @@
+{
+    "blindAccessibility_aiSpeedUp": {
+        "cat": "general",
+        "order": 900,
+        "ctx": "tlua",
+        "onDown": "extensions.blindAccessibility.aiSpeedUp()",
+        "isBasic": true,
+        "title": "Accessibility: AI Speed Up",
+        "desc": "Increase AI driving speed by 10 km/h"
+    },
+    "blindAccessibility_aiSpeedDown": {
+        "cat": "general",
+        "order": 901,
+        "ctx": "tlua",
+        "onDown": "extensions.blindAccessibility.aiSpeedDown()",
+        "isBasic": true,
+        "title": "Accessibility: AI Speed Down",
+        "desc": "Decrease AI driving speed by 10 km/h"
+    },
+    "blindAccessibility_aiAnnounceSpeed": {
+        "cat": "general",
+        "order": 902,
+        "ctx": "tlua",
+        "onDown": "extensions.blindAccessibility.aiAnnounceSpeed()",
+        "isBasic": true,
+        "title": "Accessibility: Announce AI Speed",
+        "desc": "Announce current AI speed setting"
+    }
+}

@@ -1,0 +1,10 @@
+{
+    "bindings": [
+        {"action": "blindAccessibility_aiSpeedUp", "control": "ctrl shift rbracket"},
+        {"action": "blindAccessibility_aiSpeedDown", "control": "ctrl shift lbracket"},
+        {"action": "blindAccessibility_aiAnnounceSpeed", "control": "ctrl shift backslash"}
+    ],
+    "name": "Keyboard",
+    "version": 1,
+    "devicetype": "keyboard"
+}
